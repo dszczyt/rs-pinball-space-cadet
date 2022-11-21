@@ -4,3 +4,4 @@ pub mod entry;
 pub mod group;
 pub mod header;
 pub mod objects;
+pub mod zmap;

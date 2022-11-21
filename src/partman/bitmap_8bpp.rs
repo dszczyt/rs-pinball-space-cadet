@@ -50,3 +50,14 @@ impl From<bytes::Bytes> for Bitmap8Bpp {
         }
     }
 }
+
+impl Bitmap8Bpp {
+    pub fn flip_zmap_horizontally(&self) -> bytes::Bytes {
+        dbg!(&self);
+        self.data
+            .rchunks((self.width) as usize)
+            .flatten()
+            .copied()
+            .collect()
+    }
+}

@@ -1,2 +1,2 @@
-pub mod dat;
 pub mod loader;
+pub mod partman;

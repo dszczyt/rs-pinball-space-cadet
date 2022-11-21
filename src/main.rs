@@ -1,5 +1,7 @@
-use bytes::Buf;
-use rs_pinball_space_cadet::dat::{bitmap_8bpp::Bitmap8Bpp, dat, entry::EntryType, header};
+use bytes::{Buf, Bytes};
+use rs_pinball_space_cadet::partman::{
+    bitmap_8bpp::Bitmap8Bpp, dat, entry::EntryType, header, zmap::Zmap,
+};
 use sdl2::{
     event::Event,
     image::{self, ImageRWops},
@@ -13,12 +15,15 @@ use sdl2::{
 };
 use sdl2::{image::LoadTexture, pixels::Color};
 use sdl2::{keyboard::Keycode, pixels::PixelFormatEnum};
+use std::convert::Into;
 use std::{
     io::{BufReader, Cursor, Read},
     mem::transmute,
     str::{self, FromStr},
     time::Duration,
 };
+
+fn flip_zmap_horizontally() {}
 
 fn main() {
     let dat_file = include_bytes!("data/PINBALL.DAT");
@@ -37,7 +42,7 @@ fn main() {
     dbg!(&bg);
 
     let bg_bitmap_entry = bg
-        .get_entry(rs_pinball_space_cadet::dat::entry::EntryType::Bitmap8bit)
+        .get_entry(rs_pinball_space_cadet::partman::entry::EntryType::Bitmap8bit)
         .unwrap();
 
     let bytes = bg_bitmap_entry.data.clone().unwrap().0;
@@ -114,14 +119,16 @@ fn main() {
     }
     */
 
-    let mut bg_bitmap_content: Vec<u8> = bg_bitmap.data.0.clone().into();
+    let mut bg_bitmap_content: Vec<u8> = bg_bitmap.flip_zmap_horizontally().into();
+    // let mut bg_bitmap_content = bg_bitmap_content.flip_zmap_horizontally();
+    // let mut bg_bitmap_content: Vec<u8> = bg_bitmap_content.into();
     let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
 
     // let mut bg_surface = RWops::from_bytes(y).unwrap().load_bmp().unwrap();
 
     dbg!(&bg_bitmap);
 
-    let bg_surface = Surface::from_data(
+    let mut bg_surface = Surface::from_data(
         bg_bitmap_content,
         bg_bitmap.width as u32,
         bg_bitmap.height as u32,
@@ -131,20 +138,23 @@ fn main() {
     .unwrap();
 
     // let colors: &[Color] =
-    let colors = bg
+    let tmp = bg
         .get_entry(EntryType::Palette)
         .unwrap()
         .data
         .clone()
-        .unwrap()
-        .0
+        .unwrap();
+    let colors = tmp
         .chunks(4)
         .into_iter()
-        .map(|window| Color {
-            r: window[0],
-            g: window[1],
-            b: window[2],
-            a: window[3],
+        .map(|bytes| {
+            let bytes = Bytes::copy_from_slice(bytes);
+            Color {
+                r: bytes.slice(0..1).get_u8().into(),
+                g: bytes.slice(1..2).get_u8().into(),
+                b: bytes.slice(2..3).get_u8().into(),
+                a: bytes.slice(3..4).get_u8().into(),
+            }
         })
         .collect::<Vec<Color>>();
     // let colors: &[Color] = &z;
@@ -224,7 +234,7 @@ fn main() {
     let bg_palette = Palette::with_colors(&colors).unwrap();
 
     // dbg!(&colors, &bg_palette.len());
-    // bg_surface.set_palette(&bg_palette).unwrap();
+    bg_surface.set_palette(&bg_palette).unwrap();
 
     let bg_texture = texture_creator
         .create_texture_from_surface(bg_surface)
