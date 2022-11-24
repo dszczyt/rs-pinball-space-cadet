@@ -1,5 +1,12 @@
 use bytes::Buf;
 use debug_ignore::DebugIgnore;
+use sdl2::{
+    pixels::{Color, PixelFormatEnum},
+    rect::Rect,
+    render::{Texture, TextureCreator},
+    surface::Surface,
+    video::WindowContext,
+};
 
 use super::{entry::EntryType, group::Group};
 
@@ -61,5 +68,39 @@ impl From<&Group> for Bitmap8Bpp {
             .unwrap()
             .0
             .into()
+    }
+}
+
+impl Bitmap8Bpp {
+    pub fn texture<'a>(
+        &'a self,
+        colors: Vec<Color>,
+        texture_creator: &'a TextureCreator<WindowContext>,
+    ) -> Texture {
+        let pixel_format = PixelFormatEnum::RGBA32;
+
+        let mut bg_bitmap_content: Vec<u8> = self.data.0.clone().into();
+        let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
+
+        let mut bg_surface =
+            Surface::new(self.width as u32, self.height as u32, pixel_format).unwrap();
+
+        bg_bitmap_content.iter().enumerate().for_each(|(i, pixel)| {
+            bg_surface
+                .fill_rect(
+                    Rect::new(
+                        i as i32 % (self.width + 1) as i32,
+                        self.height as i32 - i as i32 / (self.width + 1) as i32,
+                        1,
+                        1,
+                    ),
+                    colors.get(pixel.clone() as usize).unwrap().clone(),
+                )
+                .unwrap()
+        });
+
+        texture_creator
+            .create_texture_from_surface(bg_surface)
+            .unwrap()
     }
 }

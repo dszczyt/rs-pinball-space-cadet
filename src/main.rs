@@ -1,14 +1,12 @@
 use bytes::{Buf, Bytes};
 use rs_pinball_space_cadet::partman::{bitmap_8bpp::Bitmap8Bpp, dat, entry::EntryType};
+use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::{
     event::Event,
     messagebox::{show_simple_message_box, MessageBoxFlag},
-    pixels::Palette,
     rect::Rect,
-    surface::Surface,
 };
-use sdl2::{keyboard::Keycode, pixels::PixelFormatEnum};
 use std::convert::Into;
 use std::{io::Cursor, time::Duration};
 
@@ -23,10 +21,10 @@ fn main() {
         .unwrap();
     dbg!(&table_size);
 
-    let pbmsg_ft = dat_contents
-        .get_group_by_name("pbmsg_ft".to_owned())
-        .unwrap();
-    dbg!(&pbmsg_ft);
+    // let pbmsg_ft = dat_contents
+    //     .get_group_by_name("pbmsg_ft".to_owned())
+    //     .unwrap();
+    // dbg!(&pbmsg_ft);
 
     let bg = dat_contents
         .get_group_by_name("background".to_owned())
@@ -62,11 +60,6 @@ fn main() {
 
     let texture_creator = canvas.texture_creator();
 
-    let pixel_format = PixelFormatEnum::RGBA32;
-
-    let mut bg_bitmap_content: Vec<u8> = bg_bitmap.data.0.clone().into();
-    let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
-
     let tmp = bg
         .get_entry(EntryType::Palette)
         .unwrap()
@@ -90,30 +83,7 @@ fn main() {
         })
         .collect();
 
-    let mut bg_surface = Surface::new(
-        bg_bitmap.width as u32,
-        bg_bitmap.height as u32,
-        pixel_format,
-    )
-    .unwrap();
-
-    bg_bitmap_content.iter().enumerate().for_each(|(i, pixel)| {
-        bg_surface
-            .fill_rect(
-                Rect::new(
-                    i as i32 % (bg_bitmap.width + 1) as i32,
-                    bg_bitmap.height as i32 - i as i32 / (bg_bitmap.width + 1) as i32,
-                    1,
-                    1,
-                ),
-                colors.get(pixel.clone() as usize).unwrap().clone(),
-            )
-            .unwrap()
-    });
-
-    let bg_texture = texture_creator
-        .create_texture_from_surface(bg_surface)
-        .unwrap();
+    let bg_texture = bg_bitmap.texture(colors, &texture_creator);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut i = 0;
