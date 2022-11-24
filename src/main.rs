@@ -12,8 +12,6 @@ use sdl2::{keyboard::Keycode, pixels::PixelFormatEnum};
 use std::convert::Into;
 use std::{io::Cursor, time::Duration};
 
-fn flip_zmap_horizontally() {}
-
 fn main() {
     let dat_file = include_bytes!("data/PINBALL.DAT");
     // let dat_file = include_bytes!("data/FONT.DAT");
@@ -25,33 +23,22 @@ fn main() {
         .unwrap();
     dbg!(&table_size);
 
+    let pbmsg_ft = dat_contents
+        .get_group_by_name("pbmsg_ft".to_owned())
+        .unwrap();
+    dbg!(&pbmsg_ft);
+
     let bg = dat_contents
         .get_group_by_name("background".to_owned())
         .unwrap();
-    dbg!(&bg);
 
-    let bg_bitmap_entry = bg
-        .get_entry(rs_pinball_space_cadet::partman::entry::EntryType::Bitmap8bit)
-        .unwrap();
-
-    let bytes = bg_bitmap_entry.data.clone().unwrap().0;
-
-    let bg_bitmap: Bitmap8Bpp = bytes.into();
-
-    dbg!(&bg_bitmap);
-
-    // dbg!(&dat_contents);
-    // dbg!(str::from_utf8(&dat_contents.signature)
-    //     .unwrap()
-    //     .trim_end_matches("\0"));
-    // dbg!(&dat_contents.app_name);
-    // dbg!(&dat_contents.description);
+    let bg_bitmap: Bitmap8Bpp = bg.into();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = match video_subsystem
-        .window("3D Pinball for Windows - Space Cadet", 800, 556)
+        .window("3D Pinball for Windows - Space Cadet", 600, 416)
         // .position_centered()
         .build()
     {
@@ -70,45 +57,12 @@ fn main() {
 
     let mut canvas = window.into_canvas().build().unwrap();
 
-    // canvas.set_draw_color(Color::RGB(0, 255, 255));
     canvas.clear();
     canvas.present();
 
     let texture_creator = canvas.texture_creator();
 
-    // RWops::from_read(bg_bitmap.data.into());
-    // texture_creator.load_texture_bytes(bg_bitmap.data.into());
-
-    // let mut bg_bitmap_data = TextureCreator::from(bg_bitmap.data);
-
-    let pixel_format = PixelFormatEnum::BGRA32;
-    let pixel_format = PixelFormatEnum::ARGB8888;
     let pixel_format = PixelFormatEnum::RGBA32;
-
-    /*
-    for i in 1..=bg_bitmap.width {
-        let mut x: Vec<u8> = bg_bitmap.data.0.clone().into();
-
-        let y: &mut [u8] = &mut x;
-
-        let srfce = Surface::from_data(
-            y,
-            bg_bitmap.width as u32,
-            bg_bitmap.height as u32,
-            (/*bg_bitmap.width */i * pixel_format.byte_size_per_pixel() as i16) as u32,
-            pixel_format,
-        );
-
-        match srfce {
-            Ok(_surface) => {
-                dbg!(i);
-                // bg_surface = surface;
-                break;
-            }
-            _ => (),
-        }
-    }
-    */
 
     let mut bg_bitmap_content: Vec<u8> = bg_bitmap.data.0.clone().into();
     let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;

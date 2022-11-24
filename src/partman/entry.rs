@@ -41,7 +41,7 @@ impl From<u8> for EntryType {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Entry {
     pub entry_type: EntryType, // FieldTypes,
     pub size: usize,           // usize,

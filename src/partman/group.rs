@@ -1,11 +1,10 @@
 use std::io::{self, Read};
 
-
 use thiserror::Error;
 
 use super::entry::{Entry, EntryType};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Group {
     pub nb_entries: usize,
     /*pub group_id: i64,

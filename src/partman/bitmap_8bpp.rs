@@ -1,7 +1,7 @@
-
-
-use bytes::{Buf};
+use bytes::Buf;
 use debug_ignore::DebugIgnore;
+
+use super::{entry::EntryType, group::Group};
 
 #[derive(Debug, Default)]
 pub enum Resolution {
@@ -51,13 +51,15 @@ impl From<bytes::Bytes> for Bitmap8Bpp {
     }
 }
 
-impl Bitmap8Bpp {
-    pub fn flip_zmap_horizontally(&self) -> bytes::Bytes {
-        dbg!(&self);
-        self.data
-            .rchunks((self.width) as usize)
-            .flatten()
-            .copied()
-            .collect()
+impl From<&Group> for Bitmap8Bpp {
+    fn from(group: &Group) -> Self {
+        group
+            .get_entry(EntryType::Bitmap8bit)
+            .unwrap()
+            .data
+            .clone()
+            .unwrap()
+            .0
+            .into()
     }
 }
