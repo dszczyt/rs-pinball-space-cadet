@@ -1,8 +1,4 @@
-use std::str::{self};
-use std::{
-    default,
-    io::{self, Read},
-};
+use std::io::{self, Read};
 
 use debug_ignore::DebugIgnore;
 
@@ -77,7 +73,7 @@ impl Entry {
 
                 let mut short_array = vec![];
 
-                for i in 0..entry.size / 2 {
+                for _ in 0..entry.size / 2 {
                     let mut _data = [0; 2];
                     rdr.read_exact(&mut _data)?;
                     short_array.push(i16::from_le_bytes(_data));
@@ -85,7 +81,7 @@ impl Entry {
                 // dbg!(&short_array);
                 entry.short_array = Some(short_array);
             }
-            entry_type => {
+            _entry_type => {
                 let mut _size = [0; 4];
                 rdr.read_exact(&mut _size)?;
                 entry.size = u32::from_le_bytes(_size) as usize;

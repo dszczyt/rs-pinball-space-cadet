@@ -1,27 +1,16 @@
 use bytes::{Buf, Bytes};
-use rs_pinball_space_cadet::partman::{
-    bitmap_8bpp::Bitmap8Bpp, dat, entry::EntryType, header, zmap::Zmap,
-};
+use rs_pinball_space_cadet::partman::{bitmap_8bpp::Bitmap8Bpp, dat, entry::EntryType};
+use sdl2::pixels::Color;
 use sdl2::{
     event::Event,
-    image::{self, ImageRWops},
     messagebox::{show_simple_message_box, MessageBoxFlag},
-    pixels::{Palette, PixelFormat},
+    pixels::Palette,
     rect::Rect,
-    render::TextureCreator,
-    rwops::RWops,
     surface::Surface,
-    sys::image::IMG_LoadBMP_RW,
 };
-use sdl2::{image::LoadTexture, pixels::Color};
 use sdl2::{keyboard::Keycode, pixels::PixelFormatEnum};
 use std::convert::Into;
-use std::{
-    io::{BufReader, Cursor, Read},
-    mem::transmute,
-    str::{self, FromStr},
-    time::Duration,
-};
+use std::{io::Cursor, time::Duration};
 
 fn flip_zmap_horizontally() {}
 
@@ -47,7 +36,7 @@ fn main() {
 
     let bytes = bg_bitmap_entry.data.clone().unwrap().0;
 
-    let mut bg_bitmap: Bitmap8Bpp = bytes.into();
+    let bg_bitmap: Bitmap8Bpp = bytes.into();
 
     dbg!(&bg_bitmap);
 
@@ -81,7 +70,7 @@ fn main() {
 
     let mut canvas = window.into_canvas().build().unwrap();
 
-    canvas.set_draw_color(Color::RGB(0, 255, 255));
+    // canvas.set_draw_color(Color::RGB(0, 255, 255));
     canvas.clear();
     canvas.present();
 
@@ -93,6 +82,8 @@ fn main() {
     // let mut bg_bitmap_data = TextureCreator::from(bg_bitmap.data);
 
     let pixel_format = PixelFormatEnum::BGRA32;
+    let pixel_format = PixelFormatEnum::ARGB8888;
+    let pixel_format = PixelFormatEnum::RGBA32;
 
     /*
     for i in 1..=bg_bitmap.width {
@@ -119,122 +110,52 @@ fn main() {
     }
     */
 
-    let mut bg_bitmap_content: Vec<u8> = bg_bitmap.flip_zmap_horizontally().into();
-    // let mut bg_bitmap_content = bg_bitmap_content.flip_zmap_horizontally();
-    // let mut bg_bitmap_content: Vec<u8> = bg_bitmap_content.into();
+    let mut bg_bitmap_content: Vec<u8> = bg_bitmap.data.0.clone().into();
     let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
 
-    // let mut bg_surface = RWops::from_bytes(y).unwrap().load_bmp().unwrap();
-
-    dbg!(&bg_bitmap);
-
-    let mut bg_surface = Surface::from_data(
-        bg_bitmap_content,
-        bg_bitmap.width as u32,
-        bg_bitmap.height as u32,
-        (bg_bitmap.width * pixel_format.byte_size_per_pixel() as i16) as u32,
-        pixel_format,
-    )
-    .unwrap();
-
-    // let colors: &[Color] =
     let tmp = bg
         .get_entry(EntryType::Palette)
         .unwrap()
         .data
         .clone()
         .unwrap();
-    let colors = tmp
+
+    let colors: Vec<Color> = tmp
         .chunks(4)
         .into_iter()
+        // .take(245)
         .map(|bytes| {
             let bytes = Bytes::copy_from_slice(bytes);
-            Color {
+            let color = Color {
                 r: bytes.slice(0..1).get_u8().into(),
                 g: bytes.slice(1..2).get_u8().into(),
                 b: bytes.slice(2..3).get_u8().into(),
-                a: bytes.slice(3..4).get_u8().into(),
-            }
+                a: 0xFF, // bytes.slice(3..4).get_u8().into(),
+            };
+            color
         })
-        .collect::<Vec<Color>>();
-    // let colors: &[Color] = &z;
+        .collect();
 
-    /*let mut colors = vec![
-        Color {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 0,
-        },
-        Color {
-            r: 0x80,
-            g: 0,
-            b: 0,
-            a: 0xFF,
-        },
-        Color {
-            r: 0,
-            g: 0x80,
-            b: 0,
-            a: 0xFF,
-        },
-        Color {
-            r: 0x80,
-            g: 0x80,
-            b: 0,
-            a: 0xFF,
-        },
-        Color {
-            r: 0,
-            g: 0,
-            b: 0x80,
-            a: 0xFF,
-        },
-        Color {
-            r: 0x80,
-            g: 0,
-            b: 0x80,
-            a: 0xFF,
-        },
-        Color {
-            r: 0,
-            g: 0x80,
-            b: 0x80,
-            a: 0xFF,
-        },
-        Color {
-            r: 0xC0,
-            g: 0xC0,
-            b: 0xC0,
-            a: 0xFF,
-        },
-        Color {
-            r: 0xC0,
-            g: 0xDC,
-            b: 0xC0,
-            a: 0xFF,
-        },
-        Color {
-            r: 0xA6,
-            g: 0xCA,
-            b: 0xF0,
-            a: 0xFF,
-        },
-    ];
-    // colors.append(&mut z);
+    let mut bg_surface = Surface::new(
+        bg_bitmap.width as u32,
+        bg_bitmap.height as u32,
+        pixel_format,
+    )
+    .unwrap();
 
-    colors.push(Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-        a: 0xff,
+    bg_bitmap_content.iter().enumerate().for_each(|(i, pixel)| {
+        bg_surface
+            .fill_rect(
+                Rect::new(
+                    i as i32 % (bg_bitmap.width + 1) as i32,
+                    bg_bitmap.height as i32 - i as i32 / (bg_bitmap.width + 1) as i32,
+                    1,
+                    1,
+                ),
+                colors.get(pixel.clone() as usize).unwrap().clone(),
+            )
+            .unwrap()
     });
-    */
-
-    let bg_palette = Palette::with_colors(&colors).unwrap();
-
-    // dbg!(&colors, &bg_palette.len());
-    bg_surface.set_palette(&bg_palette).unwrap();
 
     let bg_texture = texture_creator
         .create_texture_from_surface(bg_surface)
@@ -267,8 +188,8 @@ fn main() {
                 Some(Rect::new(
                     bg_bitmap.position_x as i32,
                     bg_bitmap.position_y as i32,
-                    bg_bitmap.width as u32 * 2,
-                    bg_bitmap.height as u32 * 2,
+                    bg_bitmap.width as u32,
+                    bg_bitmap.height as u32,
                 )),
             )
             .unwrap();

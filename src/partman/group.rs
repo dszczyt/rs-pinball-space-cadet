@@ -1,6 +1,6 @@
 use std::io::{self, Read};
 
-use anyhow::Result;
+
 use thiserror::Error;
 
 use super::entry::{Entry, EntryType};
