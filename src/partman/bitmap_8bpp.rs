@@ -58,8 +58,8 @@ impl From<bytes::Bytes> for Bitmap8Bpp {
     }
 }
 
-impl From<&Group> for Bitmap8Bpp {
-    fn from(group: &Group) -> Self {
+impl From<Group> for Bitmap8Bpp {
+    fn from(group: Group) -> Self {
         group
             .get_entry(EntryType::Bitmap8bit)
             .unwrap()

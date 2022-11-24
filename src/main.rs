@@ -1,5 +1,7 @@
 use bytes::{Buf, Bytes};
-use rs_pinball_space_cadet::partman::{bitmap_8bpp::Bitmap8Bpp, dat, entry::EntryType};
+use rs_pinball_space_cadet::partman::{
+    bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType, table_size::TableSize,
+};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::{
@@ -7,7 +9,7 @@ use sdl2::{
     messagebox::{show_simple_message_box, MessageBoxFlag},
     rect::Rect,
 };
-use std::convert::Into;
+use std::{convert::Into, ffi::CString};
 use std::{io::Cursor, time::Duration};
 
 fn main() {
@@ -16,10 +18,17 @@ fn main() {
 
     let dat_contents = dat::Dat::from_reader(&mut Cursor::new(dat_file).reader()).unwrap();
 
-    let table_size = dat_contents
+    let title_group = dat_contents.groups.get(0).unwrap().clone();
+    let title_entry = title_group.get_entry(EntryType::String).unwrap();
+    let tmp: Vec<u8> = title_entry.data.clone().unwrap().0.into();
+    let title = CString::from_vec_with_nul(tmp).unwrap();
+    dbg!(&title);
+
+    let table_size_group = dat_contents
         .get_group_by_name("table_size".to_owned())
-        .unwrap();
-    dbg!(&table_size);
+        .unwrap()
+        .clone();
+    let table_size: TableSize = table_size_group.clone().into();
 
     // let pbmsg_ft = dat_contents
     //     .get_group_by_name("pbmsg_ft".to_owned())
@@ -28,15 +37,20 @@ fn main() {
 
     let bg = dat_contents
         .get_group_by_name("background".to_owned())
-        .unwrap();
+        .unwrap()
+        .clone();
 
-    let bg_bitmap: Bitmap8Bpp = bg.into();
+    let bg_bitmap: Bitmap8Bpp = bg.clone().into();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = match video_subsystem
-        .window("3D Pinball for Windows - Space Cadet", 600, 416)
+        .window(
+            "3D Pinball for Windows - Space Cadet",
+            table_size.width,
+            table_size.height,
+        )
         // .position_centered()
         .build()
     {
@@ -67,7 +81,7 @@ fn main() {
         .clone()
         .unwrap();
 
-    let colors: Vec<Color> = tmp
+    let colors: Colors = tmp
         .chunks(4)
         .into_iter()
         // .take(245)

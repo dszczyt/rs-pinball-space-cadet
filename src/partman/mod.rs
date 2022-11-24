@@ -1,7 +1,9 @@
 pub mod bitmap_8bpp;
+pub mod colors;
 pub mod dat;
 pub mod entry;
 pub mod group;
 pub mod header;
 pub mod objects;
+pub mod table_size;
 pub mod zmap;
