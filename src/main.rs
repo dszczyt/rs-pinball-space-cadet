@@ -1,6 +1,7 @@
 use bytes::{Buf, Bytes};
 use rs_pinball_space_cadet::partman::{
-    bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType, table_size::TableSize,
+    bitmap_16bpp::Bitmap16Bpp, bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType,
+    table_size::TableSize,
 };
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -48,8 +49,8 @@ fn main() {
     let window = match video_subsystem
         .window(
             "3D Pinball for Windows - Space Cadet",
-            table_size.width,
-            table_size.height,
+            table_size.width * 2,
+            table_size.height * 2,
         )
         // .position_centered()
         .build()
@@ -88,19 +89,35 @@ fn main() {
         .map(|bytes| {
             let bytes = Bytes::copy_from_slice(bytes);
             let color = Color {
-                r: bytes.slice(0..1).get_u8().into(),
+                b: bytes.slice(0..1).get_u8().into(),
                 g: bytes.slice(1..2).get_u8().into(),
-                b: bytes.slice(2..3).get_u8().into(),
+                r: bytes.slice(2..3).get_u8().into(),
                 a: 0xFF, // bytes.slice(3..4).get_u8().into(),
             };
             color
         })
         .collect();
 
-    let bg_texture = bg_bitmap.texture(colors, &texture_creator);
+    let bg_texture = bg_bitmap.texture(&colors, &texture_creator);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut i = 0;
+
+    let table_objects_group = dat_contents
+        .get_group_by_name("table_objects".to_string())
+        .unwrap()
+        .clone();
+    let table_objects = table_objects_group
+        .get_entry(EntryType::ShortArray)
+        .unwrap()
+        .clone()
+        .short_array
+        .unwrap();
+    let table_objects: Vec<&[i16]> = table_objects[1..].chunks(2).collect();
+
+    canvas.set_scale(2.0, 2.0).unwrap();
+
+    // dbg!(&table_objects);
 
     'running: loop {
         i = (i + 1) % 255;
@@ -118,6 +135,23 @@ fn main() {
             }
         }
         // The rest of the game loop goes here...
+
+        table_objects
+            .iter()
+            .filter(|pair| {
+                let (val1, val2) = (pair[0], pair[1]);
+                val1 == 1005 // bumper?
+            })
+            .for_each(|pair| {
+                let (val1, val2) = (pair[0], pair[1]);
+                let group = dat_contents.groups.get(val2 as usize).unwrap();
+                // &dbg!(&val1, &val2, &group,);
+                let bitmap: Bitmap8Bpp = group.clone().into();
+                let texture = bitmap.texture(&colors, &texture_creator);
+                canvas
+                    .copy(&texture, None, Some(Rect::new(0, 0, 50, 50)))
+                    .unwrap();
+            });
 
         canvas
             .copy(

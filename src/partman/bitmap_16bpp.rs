@@ -32,7 +32,7 @@ impl From<i8> for Resolution {
 }
 
 #[derive(Debug, Default)]
-pub struct Bitmap8Bpp {
+pub struct Bitmap16Bpp {
     pub resolution: Resolution,
     pub width: i16,
     pub height: i16,
@@ -43,7 +43,7 @@ pub struct Bitmap8Bpp {
     pub data: DebugIgnore<bytes::Bytes>,
 }
 
-impl From<bytes::Bytes> for Bitmap8Bpp {
+impl From<bytes::Bytes> for Bitmap16Bpp {
     fn from(bytes: bytes::Bytes) -> Self {
         Self {
             resolution: bytes.slice(0..1).get_i8().into(),
@@ -58,7 +58,7 @@ impl From<bytes::Bytes> for Bitmap8Bpp {
     }
 }
 
-impl From<Group> for Bitmap8Bpp {
+impl From<Group> for Bitmap16Bpp {
     fn from(group: Group) -> Self {
         group
             .get_entry(EntryType::Bitmap8bit)
@@ -71,7 +71,7 @@ impl From<Group> for Bitmap8Bpp {
     }
 }
 
-impl Bitmap8Bpp {
+impl Bitmap16Bpp {
     pub fn texture<'a>(
         &'a self,
         colors: &Vec<Color>,
