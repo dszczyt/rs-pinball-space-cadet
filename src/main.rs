@@ -1,6 +1,6 @@
 use bytes::{Buf, Bytes};
 use rs_pinball_space_cadet::partman::{
-    bitmap_16bpp::Bitmap16Bpp, bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType,
+    bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType,
     table_size::TableSize,
 };
 use sdl2::keyboard::Keycode;
@@ -139,11 +139,11 @@ fn main() {
         table_objects
             .iter()
             .filter(|pair| {
-                let (val1, val2) = (pair[0], pair[1]);
+                let (val1, _val2) = (pair[0], pair[1]);
                 val1 == 1005 // bumper?
             })
             .for_each(|pair| {
-                let (val1, val2) = (pair[0], pair[1]);
+                let (_val1, val2) = (pair[0], pair[1]);
                 let group = dat_contents.groups.get(val2 as usize).unwrap();
                 // &dbg!(&val1, &val2, &group,);
                 let bitmap: Bitmap8Bpp = group.clone().into();
