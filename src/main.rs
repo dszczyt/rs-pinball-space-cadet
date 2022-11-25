@@ -149,7 +149,16 @@ fn main() {
                 let bitmap: Bitmap8Bpp = group.clone().into();
                 let texture = bitmap.texture(&colors, &texture_creator);
                 canvas
-                    .copy(&texture, None, Some(Rect::new(0, 0, 50, 50)))
+                    .copy(
+                        &texture,
+                        None,
+                        Some(Rect::new(
+                            bitmap.position_x as i32,
+                            bitmap.position_y as i32,
+                            bitmap.width as u32,
+                            bitmap.height as u32,
+                        )),
+                    )
                     .unwrap();
             });
 
