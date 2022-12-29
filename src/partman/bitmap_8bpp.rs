@@ -1,5 +1,7 @@
 use bytes::Buf;
-use debug_ignore::DebugIgnore;
+use derivative::Derivative;
+use num::FromPrimitive;
+use num_derive::FromPrimitive;
 use sdl2::{
     pixels::{Color, PixelFormatEnum},
     rect::Rect,
@@ -31,29 +33,43 @@ impl From<i8> for Resolution {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(FromPrimitive, Debug, Default, PartialEq)]
+pub enum BitmapType {
+    None = 0,
+    Raw = 1,
+    Dib = 2,
+    Spliced = 3,
+    #[default]
+    Undefined = -1,
+}
+
+#[derive(Derivative, Default)]
+#[derivative(Debug)]
 pub struct Bitmap8Bpp {
     pub resolution: Resolution,
-    pub width: i16,
-    pub height: i16,
+    pub width: u32,
+    pub height: u32,
     pub position_x: i16,
     pub position_y: i16,
     pub size: i32,
-    pub flags: i8,
-    pub data: DebugIgnore<bytes::Bytes>,
+    pub flags: BitmapType,
+    #[derivative(Debug = "ignore")]
+    pub data: bytes::Bytes,
 }
 
 impl From<bytes::Bytes> for Bitmap8Bpp {
     fn from(bytes: bytes::Bytes) -> Self {
+        let size = bytes.slice(9..13).get_i32_le();
         Self {
             resolution: bytes.slice(0..1).get_i8().into(),
-            width: bytes.slice(1..3).get_i16_le(),
-            height: bytes.slice(3..5).get_i16_le(),
+            width: bytes.slice(1..3).get_i16_le() as u32,
+            height: bytes.slice(3..5).get_i16_le() as u32,
             position_x: bytes.slice(5..7).get_i16_le(),
             position_y: bytes.slice(7..9).get_i16_le(),
-            size: bytes.slice(9..13).get_i32_le(),
-            flags: bytes.slice(13..14).get_i8(),
-            data: DebugIgnore(bytes.slice(14..)),
+            size: size,
+            flags: FromPrimitive::from_i8(bytes.slice(13..14).get_i8())
+                .expect("unexpected bitmap flag"),
+            data: bytes.slice(14..(size as usize)),
         }
     }
 }
@@ -66,7 +82,6 @@ impl From<Group> for Bitmap8Bpp {
             .data
             .clone()
             .unwrap()
-            .0
             .into()
     }
 }
@@ -77,9 +92,13 @@ impl Bitmap8Bpp {
         colors: &Vec<Color>,
         texture_creator: &'a TextureCreator<WindowContext>,
     ) -> Texture {
+        if self.flags == BitmapType::Spliced {
+            panic!("can't create texture for spliced bitmap")
+        }
+
         let pixel_format = PixelFormatEnum::RGBA32;
 
-        let mut bg_bitmap_content: Vec<u8> = self.data.0.clone().into();
+        let mut bg_bitmap_content: Vec<u8> = self.data.clone().into();
         let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
 
         let mut bg_surface =
@@ -98,6 +117,25 @@ impl Bitmap8Bpp {
                 )
                 .unwrap()
         });
+
+        texture_creator
+            .create_texture_from_surface(bg_surface)
+            .unwrap()
+    }
+
+    pub fn texture_at<'a>(
+        &'a self,
+        idx: usize,
+        colors: &Vec<Color>,
+        texture_creator: &'a TextureCreator<WindowContext>,
+    ) -> Texture {
+        if self.flags != BitmapType::Spliced {
+            panic!("can't create texture for non-spliced bitmap")
+        }
+
+        let pixel_format = PixelFormatEnum::RGBA32;
+
+        let mut bg_surface = Surface::new(self.width, self.height, pixel_format).unwrap();
 
         texture_creator
             .create_texture_from_surface(bg_surface)

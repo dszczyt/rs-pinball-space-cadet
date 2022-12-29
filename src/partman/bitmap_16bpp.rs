@@ -1,5 +1,5 @@
 use bytes::Buf;
-use debug_ignore::DebugIgnore;
+use derivative::Derivative;
 use sdl2::{
     pixels::{Color, PixelFormatEnum},
     rect::Rect,
@@ -31,7 +31,8 @@ impl From<i8> for Resolution {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Derivative, Default)]
+#[derivative(Debug)]
 pub struct Bitmap16Bpp {
     pub resolution: Resolution,
     pub width: i16,
@@ -40,7 +41,8 @@ pub struct Bitmap16Bpp {
     pub position_y: i16,
     pub size: i32,
     pub flags: i8,
-    pub data: DebugIgnore<bytes::Bytes>,
+    #[derivative(Debug = "ignore")]
+    pub data: bytes::Bytes,
 }
 
 impl From<bytes::Bytes> for Bitmap16Bpp {
@@ -53,7 +55,7 @@ impl From<bytes::Bytes> for Bitmap16Bpp {
             position_y: bytes.slice(7..9).get_i16_le(),
             size: bytes.slice(9..13).get_i32_le(),
             flags: bytes.slice(13..14).get_i8(),
-            data: DebugIgnore(bytes.slice(14..)),
+            data: bytes.slice(14..),
         }
     }
 }
@@ -66,7 +68,6 @@ impl From<Group> for Bitmap16Bpp {
             .data
             .clone()
             .unwrap()
-            .0
             .into()
     }
 }
@@ -79,7 +80,7 @@ impl Bitmap16Bpp {
     ) -> Texture {
         let pixel_format = PixelFormatEnum::RGBA32;
 
-        let mut bg_bitmap_content: Vec<u8> = self.data.0.clone().into();
+        let mut bg_bitmap_content: Vec<u8> = self.data.clone().into();
         let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
 
         let mut bg_surface =

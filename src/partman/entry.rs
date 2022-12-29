@@ -1,7 +1,5 @@
 use std::io::{self, Read};
 
-use debug_ignore::DebugIgnore;
-
 #[derive(PartialEq, PartialOrd, Debug, Clone, Copy, Default)]
 pub enum EntryType {
     // One 16 bit signed integer
@@ -46,7 +44,7 @@ pub struct Entry {
     pub entry_type: EntryType, // FieldTypes,
     pub size: usize,           // usize,
 
-    pub data: Option<DebugIgnore<bytes::Bytes>>,
+    pub data: Option<bytes::Bytes>,
     pub value: Option<u16>,
     pub short_array: Option<Vec<i16>>,
 }
@@ -92,7 +90,7 @@ impl Entry {
                 // if entry_type == EntryType::GroupName || entry_type == EntryType::String {
                 //     dbg!((entry_type, str::from_utf8(&_data).unwrap().to_string()));
                 // }
-                entry.data = Some(DebugIgnore(_data.into()));
+                entry.data = Some(_data.into());
             }
         }
 

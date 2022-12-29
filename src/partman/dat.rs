@@ -34,7 +34,7 @@ impl Dat {
             group
                 .get_entry(super::entry::EntryType::GroupName)
                 .map_or(false, |entry| {
-                    CString::from_vec_with_nul(entry.data.clone().unwrap().0.into())
+                    CString::from_vec_with_nul(entry.data.clone().unwrap().into())
                         .unwrap()
                         .into_string()
                         .unwrap()

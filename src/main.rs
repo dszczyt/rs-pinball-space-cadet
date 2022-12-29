@@ -1,7 +1,6 @@
 use bytes::{Buf, Bytes};
 use rs_pinball_space_cadet::partman::{
-    bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType,
-    table_size::TableSize,
+    bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType, table_size::TableSize,
 };
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -21,7 +20,7 @@ fn main() {
 
     let title_group = dat_contents.groups.get(0).unwrap().clone();
     let title_entry = title_group.get_entry(EntryType::String).unwrap();
-    let tmp: Vec<u8> = title_entry.data.clone().unwrap().0.into();
+    let tmp: Vec<u8> = title_entry.data.clone().unwrap().into();
     let title = CString::from_vec_with_nul(tmp).unwrap();
     dbg!(&title);
 
@@ -122,7 +121,8 @@ fn main() {
     'running: loop {
         i = (i + 1) % 255;
         // canvas.set_draw_color(Color::RGB(i, 64, 255 - i));
-        canvas.set_draw_color(Color::RGB(0, 64, 255));
+        // canvas.set_draw_color(Color::RGB(0, 64, 255));
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         for event in event_pump.poll_iter() {
             match event {
@@ -143,9 +143,9 @@ fn main() {
                 val1 == 1005 // bumper?
             })
             .for_each(|pair| {
-                let (_val1, val2) = (pair[0], pair[1]);
+                let (val1, val2) = (pair[0], pair[1]);
                 let group = dat_contents.groups.get(val2 as usize).unwrap();
-                // &dbg!(&val1, &val2, &group,);
+                // dbg!(&val1, &val2, &group, &group.name());
                 let bitmap: Bitmap8Bpp = group.clone().into();
                 let texture = bitmap.texture(&colors, &texture_creator);
                 canvas

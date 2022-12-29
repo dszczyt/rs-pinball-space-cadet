@@ -1,9 +1,8 @@
-use std::fmt::Debug;
-
 use bytes::Buf;
-use debug_ignore::DebugIgnore;
+use derivative::Derivative;
 
-#[derive(Debug, Default)]
+#[derive(Derivative, Default)]
+#[derivative(Debug)]
 pub struct Zmap {
     pub width: i16,
     pub height: i16,
@@ -11,7 +10,8 @@ pub struct Zmap {
     _unknown_1: i32,
     _unknown_2: i16,
     _unknown_3: i16,
-    pub data: DebugIgnore<bytes::Bytes>,
+    #[derivative(Debug = "ignore")]
+    pub data: bytes::Bytes,
 }
 
 impl From<bytes::Bytes> for Zmap {
@@ -23,7 +23,7 @@ impl From<bytes::Bytes> for Zmap {
             _unknown_1: bytes.slice(6..10).get_i32_le().into(),
             _unknown_2: bytes.slice(10..12).get_i16_le().into(),
             _unknown_3: bytes.slice(12..14).get_i16_le().into(),
-            data: DebugIgnore(bytes.slice(14..)),
+            data: bytes.slice(14..),
         }
     }
 }
@@ -32,7 +32,6 @@ impl Zmap {
     pub fn flip_zmap_horizontally(&self) -> bytes::Bytes {
         dbg!(&self);
         self.data
-            .0
             .rchunks((self.width) as usize)
             .flatten()
             .copied()

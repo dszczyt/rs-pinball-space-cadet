@@ -1,4 +1,7 @@
-use std::io::{self, Read};
+use std::{
+    ffi::CString,
+    io::{self, Read},
+};
 
 use thiserror::Error;
 
@@ -36,6 +39,20 @@ impl Group {
         self.entries
             .iter()
             .find(|&entry| entry.entry_type == entry_type)
+    }
+
+    pub fn name(&self) -> String {
+        CString::from_vec_with_nul(
+            self.get_entry(EntryType::GroupName)
+                .unwrap()
+                .data
+                .clone()
+                .unwrap()
+                .into(),
+        )
+        .unwrap()
+        .into_string()
+        .unwrap()
     }
 }
 
