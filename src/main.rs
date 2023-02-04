@@ -1,5 +1,8 @@
+mod partman;
+mod pinball_table;
+
 use bytes::{Buf, Bytes};
-use rs_pinball_space_cadet::partman::{
+use partman::{
     bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType, table_size::TableSize,
 };
 use sdl2::keyboard::Keycode;
@@ -11,6 +14,11 @@ use sdl2::{
 };
 use std::{convert::Into, ffi::CString};
 use std::{io::Cursor, time::Duration};
+
+use crate::partman::{
+    entry::{EntryPalette, EntryShortArray},
+    table_objects::ObjectType,
+};
 
 fn main() {
     let dat_file = include_bytes!("data/PINBALL.DAT");
@@ -37,10 +45,9 @@ fn main() {
 
     let bg = dat_contents
         .get_group_by_name("background".to_owned())
-        .unwrap()
-        .clone();
+        .unwrap();
 
-    let bg_bitmap: Bitmap8Bpp = bg.clone().into();
+    let bg_bitmap: Bitmap8Bpp = bg.try_into().unwrap();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -74,28 +81,9 @@ fn main() {
 
     let texture_creator = canvas.texture_creator();
 
-    let tmp = bg
-        .get_entry(EntryType::Palette)
-        .unwrap()
-        .data
-        .clone()
-        .unwrap();
+    let palette: EntryPalette = bg.into();
 
-    let colors: Colors = tmp
-        .chunks(4)
-        .into_iter()
-        // .take(245)
-        .map(|bytes| {
-            let bytes = Bytes::copy_from_slice(bytes);
-            let color = Color {
-                b: bytes.slice(0..1).get_u8().into(),
-                g: bytes.slice(1..2).get_u8().into(),
-                r: bytes.slice(2..3).get_u8().into(),
-                a: 0xFF, // bytes.slice(3..4).get_u8().into(),
-            };
-            color
-        })
-        .collect();
+    let colors: Colors = palette.into();
 
     let bg_texture = bg_bitmap.texture(&colors, &texture_creator);
 
@@ -104,15 +92,10 @@ fn main() {
 
     let table_objects_group = dat_contents
         .get_group_by_name("table_objects".to_string())
-        .unwrap()
-        .clone();
-    let table_objects = table_objects_group
-        .get_entry(EntryType::ShortArray)
-        .unwrap()
-        .clone()
-        .short_array
         .unwrap();
-    let table_objects: Vec<&[i16]> = table_objects[1..].chunks(2).collect();
+
+    let table_objects: EntryShortArray = table_objects_group.into();
+    let table_objects: Vec<&[i16]> = table_objects.short_array[1..].chunks(2).collect(); // the first integer is unknown (https://github.com/k4zmu2a/SpaceCadetPinball/blob/master/Doc/.dat%20file%20format.txt#L82)
 
     canvas.set_scale(2.0, 2.0).unwrap();
 
@@ -138,42 +121,48 @@ fn main() {
 
         table_objects
             .iter()
-            .filter(|pair| {
-                let (val1, _val2) = (pair[0], pair[1]);
-                val1 == 1005 // bumper?
-            })
+            // .filter(|pair| {
+            //     let (val1, _val2) = (pair[0], pair[1]);
+            //     val1 == (ObjectType::Bumper as i16) // 1005 // bumper?
+            // })
             .for_each(|pair| {
-                let (val1, val2) = (pair[0], pair[1]);
+                let (_val1, val2) = (pair[0], pair[1]);
                 let group = dat_contents.groups.get(val2 as usize).unwrap();
                 // dbg!(&val1, &val2, &group, &group.name());
-                let bitmap: Bitmap8Bpp = group.clone().into();
-                let texture = bitmap.texture(&colors, &texture_creator);
-                canvas
-                    .copy(
-                        &texture,
-                        None,
-                        Some(Rect::new(
-                            bitmap.position_x as i32,
-                            bitmap.position_y as i32,
-                            bitmap.width as u32,
-                            bitmap.height as u32,
-                        )),
-                    )
-                    .unwrap();
+                let bitmap: Result<Bitmap8Bpp, _> = group.try_into();
+
+                match bitmap {
+                    Ok(bitmap) => {
+                        let texture = bitmap.texture(&colors, &texture_creator);
+                        canvas
+                            .copy(
+                                &texture,
+                                None,
+                                Some(Rect::new(
+                                    bitmap.position_x as i32,
+                                    bitmap.position_y as i32,
+                                    bitmap.width as u32,
+                                    bitmap.height as u32,
+                                )),
+                            )
+                            .unwrap();
+                    }
+                    Err(e) => {}
+                }
             });
 
-        canvas
-            .copy(
-                &bg_texture,
-                None,
-                Some(Rect::new(
-                    bg_bitmap.position_x as i32,
-                    bg_bitmap.position_y as i32,
-                    bg_bitmap.width as u32,
-                    bg_bitmap.height as u32,
-                )),
-            )
-            .unwrap();
+        // canvas
+        //     .copy(
+        //         &bg_texture,
+        //         None,
+        //         Some(Rect::new(
+        //             bg_bitmap.position_x as i32,
+        //             bg_bitmap.position_y as i32,
+        //             bg_bitmap.width as u32,
+        //             bg_bitmap.height as u32,
+        //         )),
+        //     )
+        //     .unwrap();
 
         canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));

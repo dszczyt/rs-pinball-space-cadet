@@ -74,8 +74,8 @@ impl From<bytes::Bytes> for Bitmap8Bpp {
     }
 }
 
-impl From<Group> for Bitmap8Bpp {
-    fn from(group: Group) -> Self {
+/*impl From<&Group> for Bitmap8Bpp {
+    fn from(group: &Group) -> Self {
         group
             .get_entry(EntryType::Bitmap8bit)
             .unwrap()
@@ -83,6 +83,19 @@ impl From<Group> for Bitmap8Bpp {
             .clone()
             .unwrap()
             .into()
+    }
+}*/
+
+impl TryFrom<&Group> for Bitmap8Bpp {
+    type Error = String;
+    fn try_from(group: &Group) -> Result<Self, Self::Error> {
+        Ok(group
+            .get_entry(EntryType::Bitmap8bit)
+            .ok_or("can't get entry for bitmap 8bit".to_owned())?
+            .data
+            .clone()
+            .ok_or("no data".to_owned())?
+            .into())
     }
 }
 
@@ -135,7 +148,7 @@ impl Bitmap8Bpp {
 
         let pixel_format = PixelFormatEnum::RGBA32;
 
-        let mut bg_surface = Surface::new(self.width, self.height, pixel_format).unwrap();
+        let bg_surface = Surface::new(self.width, self.height, pixel_format).unwrap();
 
         texture_creator
             .create_texture_from_surface(bg_surface)

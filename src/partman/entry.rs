@@ -1,5 +1,9 @@
 use std::io::{self, Read};
 
+use bytes::Bytes;
+
+use super::group::Group;
+
 #[derive(PartialEq, PartialOrd, Debug, Clone, Copy, Default)]
 pub enum EntryType {
     // One 16 bit signed integer
@@ -47,6 +51,38 @@ pub struct Entry {
     pub data: Option<bytes::Bytes>,
     pub value: Option<u16>,
     pub short_array: Option<Vec<i16>>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct EntryShortValue {
+    pub value: u16,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct EntryShortArray {
+    pub short_array: Vec<i16>,
+}
+
+impl From<&Group> for EntryShortArray {
+    fn from(group: &Group) -> Self {
+        let entry = group.get_entry(EntryType::ShortArray).unwrap();
+        Self {
+            short_array: entry.short_array.clone().unwrap(),
+        }
+    }
+}
+
+pub struct EntryPalette {
+    pub data: Bytes,
+}
+
+impl From<&Group> for EntryPalette {
+    fn from(group: &Group) -> Self {
+        let entry = group.get_entry(EntryType::Palette).unwrap();
+        Self {
+            data: entry.data.clone().unwrap(),
+        }
+    }
 }
 
 impl Entry {

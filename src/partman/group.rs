@@ -5,7 +5,7 @@ use std::{
 
 use thiserror::Error;
 
-use super::entry::{Entry, EntryType};
+use super::entry::{Entry, EntryShortArray, EntryShortValue, EntryType};
 
 #[derive(Debug, Clone)]
 pub struct Group {
