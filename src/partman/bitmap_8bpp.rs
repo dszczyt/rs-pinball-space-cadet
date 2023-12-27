@@ -1,3 +1,4 @@
+use anyhow::Context;
 use bytes::Buf;
 use derivative::Derivative;
 use num::FromPrimitive;
@@ -43,6 +44,8 @@ pub enum BitmapType {
     Undefined = -1,
 }
 
+pub const BITMAP_HEADER_SIZE: usize = 14;
+
 #[derive(Derivative, Default, Clone)]
 #[derivative(Debug)]
 pub struct Bitmap8Bpp {
@@ -57,20 +60,22 @@ pub struct Bitmap8Bpp {
     pub data: bytes::Bytes,
 }
 
-impl From<bytes::Bytes> for Bitmap8Bpp {
-    fn from(bytes: bytes::Bytes) -> Self {
+impl TryFrom<bytes::Bytes> for Bitmap8Bpp {
+    type Error = anyhow::Error;
+
+    fn try_from(bytes: bytes::Bytes) -> anyhow::Result<Self> {
         let size = bytes.slice(9..13).get_i32_le();
-        Self {
+        Ok(Self {
             resolution: bytes.slice(0..1).get_i8().into(),
             width: bytes.slice(1..3).get_i16_le() as u32,
             height: bytes.slice(3..5).get_i16_le() as u32,
             position_x: bytes.slice(5..7).get_i16_le(),
             position_y: bytes.slice(7..9).get_i16_le(),
-            size: size,
+            size,
             flags: FromPrimitive::from_i8(bytes.slice(13..14).get_i8())
-                .expect("unexpected bitmap flag"),
+                .context("unexpected bitmap flag")?,
             data: bytes.slice(14..(size as usize)),
-        }
+        })
     }
 }
 
@@ -87,15 +92,16 @@ impl From<bytes::Bytes> for Bitmap8Bpp {
 }*/
 
 impl TryFrom<&Group> for Bitmap8Bpp {
-    type Error = String;
-    fn try_from(group: &Group) -> Result<Self, Self::Error> {
-        Ok(group
+    type Error = anyhow::Error;
+
+    fn try_from(group: &Group) -> anyhow::Result<Self> {
+        group
             .get_entry(EntryType::Bitmap8bit)
-            .ok_or("can't get entry for bitmap 8bit".to_owned())?
+            .context("can't get entry for bitmap 8bit")?
             .data
             .clone()
-            .ok_or("no data".to_owned())?
-            .into())
+            .context("no data".to_owned())?
+            .try_into()
     }
 }
 
@@ -115,12 +121,10 @@ impl Bitmap8Bpp {
         let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
 
         if self.flags == BitmapType::Spliced {
-            dbg!(&bg_bitmap_content.len());
-            dbg!(&self.width * &self.height);
+            dbg!(&bg_bitmap_content.len(), self.width * self.height);
         }
 
-        let mut bg_surface =
-            Surface::new(self.width as u32, self.height as u32, pixel_format).unwrap();
+        let mut bg_surface = Surface::new(self.width, self.height, pixel_format).unwrap();
 
         bg_bitmap_content.iter().enumerate().for_each(|(i, pixel)| {
             bg_surface
@@ -131,7 +135,7 @@ impl Bitmap8Bpp {
                         1,
                         1,
                     ),
-                    colors.get(pixel.clone() as usize).unwrap().clone(),
+                    *colors.get(*pixel as usize).unwrap(),
                 )
                 .unwrap()
         });
@@ -144,19 +148,19 @@ impl Bitmap8Bpp {
     pub fn texture_at<'a>(
         &'a self,
         idx: usize,
-        colors: &Vec<Color>,
+        colors: &[Color],
         texture_creator: &'a TextureCreator<WindowContext>,
-    ) -> Texture {
+    ) -> anyhow::Result<Texture> {
         if self.flags != BitmapType::Spliced {
-            panic!("can't create texture for non-spliced bitmap")
+            return Err(anyhow::anyhow!(
+                "can't create texture for non-spliced bitmap"
+            ));
         }
 
         let pixel_format = PixelFormatEnum::RGBA32;
 
         let bg_surface = Surface::new(self.width, self.height, pixel_format).unwrap();
 
-        texture_creator
-            .create_texture_from_surface(bg_surface)
-            .unwrap()
+        Ok(texture_creator.create_texture_from_surface(bg_surface)?)
     }
 }

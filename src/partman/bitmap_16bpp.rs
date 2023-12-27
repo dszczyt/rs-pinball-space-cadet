@@ -75,7 +75,7 @@ impl From<Group> for Bitmap16Bpp {
 impl Bitmap16Bpp {
     pub fn texture<'a>(
         &'a self,
-        colors: &Vec<Color>,
+        colors: &[Color],
         texture_creator: &'a TextureCreator<WindowContext>,
     ) -> Texture {
         let pixel_format = PixelFormatEnum::RGBA32;
@@ -95,7 +95,7 @@ impl Bitmap16Bpp {
                         1,
                         1,
                     ),
-                    colors.get(pixel.clone() as usize).unwrap().clone(),
+                    *colors.get(*pixel as usize).unwrap(),
                 )
                 .unwrap()
         });

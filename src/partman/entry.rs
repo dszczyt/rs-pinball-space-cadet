@@ -91,8 +91,10 @@ impl Entry {
         rdr.read_exact(&mut _entry_type)?;
         let entry_type: EntryType = u8::from_le_bytes(_entry_type).into();
 
-        let mut entry = Entry::default();
-        entry.entry_type = entry_type;
+        let mut entry = Entry {
+            entry_type,
+            ..Default::default()
+        };
 
         match entry_type {
             EntryType::ShortValue => {

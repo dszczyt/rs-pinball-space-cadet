@@ -1,6 +1,6 @@
 use bytes::{Buf, Bytes};
 
-use crate::partman::bitmap_8bpp::Bitmap8Bpp;
+use crate::partman::bitmap_8bpp::{Bitmap8Bpp, BITMAP_HEADER_SIZE};
 
 #[derive(Default)]
 struct Score {
@@ -30,16 +30,19 @@ impl From<&str> for ScoreFieldName {
     }
 }
 
-impl From<Bytes> for Score {
-    fn from(bytes: Bytes) -> Self {
+impl TryFrom<Bytes> for Score {
+    type Error = anyhow::Error;
+
+    fn try_from(bytes: Bytes) -> anyhow::Result<Self> {
         let mut start = 8;
 
         let mut char_bmp: [Bitmap8Bpp; 10] = Default::default();
-        for i in 0..10 {
-            char_bmp[i] = bytes.slice(start..).into();
-            start = start + char_bmp[i].size as usize + 14;
-        }
-        Self {
+        (0..10).try_for_each(|i| -> anyhow::Result<()> {
+            char_bmp[i] = bytes.slice(start..).try_into()?;
+            start = start + char_bmp[i].size as usize + BITMAP_HEADER_SIZE;
+            Ok(())
+        })?;
+        Ok(Self {
             score: -9999,
             dirty_flag: true,
             offset_x: bytes.slice(0..2).get_i16_le().into(),
@@ -47,6 +50,6 @@ impl From<Bytes> for Score {
             width: bytes.slice(4..6).get_i16_le().into(),
             height: bytes.slice(6..8).get_i16_le().into(),
             char_bmp: Box::new(char_bmp), // bytes.slice(8..).into(),
-        }
+        })
     }
 }

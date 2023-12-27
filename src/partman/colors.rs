@@ -10,13 +10,12 @@ impl From<EntryPalette> for Colors {
         palette
             .data
             .chunks(4)
-            .into_iter()
-            .map(|chunk| Bytes::copy_from_slice(chunk))
+            .map(Bytes::copy_from_slice)
             .map(|bytes| {
                 Color {
-                    b: bytes.slice(0..1).get_u8().into(),
-                    g: bytes.slice(1..2).get_u8().into(),
-                    r: bytes.slice(2..3).get_u8().into(),
+                    b: bytes.slice(0..1).get_u8(),
+                    g: bytes.slice(1..2).get_u8(),
+                    r: bytes.slice(2..3).get_u8(),
                     a: 0xFF, // bytes.slice(3..4).get_u8().into(),
                 }
             })

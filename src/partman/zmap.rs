@@ -17,12 +17,12 @@ pub struct Zmap {
 impl From<bytes::Bytes> for Zmap {
     fn from(bytes: bytes::Bytes) -> Self {
         Self {
-            width: bytes.slice(0..2).get_i16_le().into(),
-            height: bytes.slice(2..4).get_i16_le().into(),
-            pitch: bytes.slice(4..6).get_i16_le().into(),
-            _unknown_1: bytes.slice(6..10).get_i32_le().into(),
-            _unknown_2: bytes.slice(10..12).get_i16_le().into(),
-            _unknown_3: bytes.slice(12..14).get_i16_le().into(),
+            width: bytes.slice(0..2).get_i16_le(),
+            height: bytes.slice(2..4).get_i16_le(),
+            pitch: bytes.slice(4..6).get_i16_le(),
+            _unknown_1: bytes.slice(6..10).get_i32_le(),
+            _unknown_2: bytes.slice(10..12).get_i16_le(),
+            _unknown_3: bytes.slice(12..14).get_i16_le(),
             data: bytes.slice(14..),
         }
     }

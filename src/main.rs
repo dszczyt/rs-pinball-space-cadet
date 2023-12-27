@@ -1,3 +1,4 @@
+pub mod group_names;
 pub mod messages;
 pub mod partman;
 pub mod pinball_table;
@@ -6,32 +7,29 @@ pub mod table;
 use anyhow::Context;
 use bytes::Buf;
 use num::FromPrimitive;
-use partman::{
-    bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType, table_size::TableSize,
-};
+use partman::{bitmap_8bpp::Bitmap8Bpp, colors::Colors, entry::EntryType, table_size::TableSize};
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::Color;
 use sdl2::{
     event::Event,
     messagebox::{show_simple_message_box, MessageBoxFlag},
     rect::Rect,
 };
-use sdl2::{keyboard::Keycode, render::TextureCreator, video::WindowContext};
-use sdl2::{pixels::Color, render::Texture};
-use std::{borrow::BorrowMut, cell::RefCell, convert::Into, ffi::CString, rc::Rc, sync::Arc};
+use std::{convert::Into, ffi::CString};
 use std::{io::Cursor, time::Duration};
-use tokio::sync::{broadcast, Mutex};
+// use tokio::sync::{broadcast, Mutex};
 
+use crate::partman::dat::Dat;
 use crate::partman::{
     entry::{EntryPalette, EntryShortArray},
     table_objects::ObjectType,
 };
-use crate::{messages::Message, messages::MessageHandler, partman::dat::Dat};
 
 pub trait Redraw {
     fn redraw(&mut self) -> Result<(), String>;
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let dat_file = include_bytes!("data/PINBALL.DAT");
     // let dat_file = include_bytes!("data/FONT.DAT");
 
@@ -50,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
     dbg!(&title);
 
     let table_size_group = dat_contents
-        .get_group_by_name("table_size".to_owned())
+        .get_group_by_name(crate::group_names::TABLE_SIZE.to_owned())
         .context("group table size not found")?
         .clone();
     let table_size: TableSize = table_size_group.clone().into();
@@ -61,13 +59,15 @@ async fn main() -> anyhow::Result<()> {
     // dbg!(&pbmsg_ft);
 
     let bg = dat_contents
-        .get_group_by_name("background".to_owned())
+        .get_group_by_name(crate::group_names::BACKGROUND.to_owned())
         .context("group background not found")?;
 
-    let bg_bitmap: Bitmap8Bpp = bg.try_into().unwrap();
+    let bg_bitmap: Bitmap8Bpp = bg.try_into()?;
 
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
+    dbg!(&bg_bitmap);
+
+    let sdl_context = sdl2::init().map_err(|e| anyhow::anyhow!(e))?;
+    let video_subsystem = sdl_context.video().map_err(|e| anyhow::anyhow!(e))?;
 
     let window = match video_subsystem
         .window(
@@ -95,6 +95,13 @@ async fn main() -> anyhow::Result<()> {
     canvas.clear();
     canvas.present();
 
+    let ball = dat_contents
+        .get_group_by_name(crate::group_names::BALL.to_owned())
+        .context("group ball not found")?;
+    let ball_bitmap: Bitmap8Bpp = ball.try_into()?;
+
+    dbg!(&ball_bitmap);
+
     let texture_creator = canvas.texture_creator();
 
     let palette: EntryPalette = bg.into();
@@ -103,7 +110,9 @@ async fn main() -> anyhow::Result<()> {
 
     let bg_texture = bg_bitmap.texture(&colors, &texture_creator);
 
-    let mut event_pump = sdl_context.event_pump().unwrap();
+    let ball_texture = ball_bitmap.texture(&colors, &texture_creator);
+
+    let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow::anyhow!(e))?;
     let mut i = 0;
 
     let table_objects_group = dat_contents
@@ -113,7 +122,7 @@ async fn main() -> anyhow::Result<()> {
     let table_objects: EntryShortArray = table_objects_group.into();
     let table_objects: Vec<&[i16]> = table_objects.short_array[1..].chunks(2).collect(); // the first integer is unknown (https://github.com/k4zmu2a/SpaceCadetPinball/blob/master/Doc/.dat%20file%20format.txt#L82)
 
-    canvas.set_scale(2.0, 2.0).unwrap();
+    canvas.set_scale(2.0, 2.0).map_err(|e| anyhow::anyhow!(e))?;
 
     // dbg!(&table_objects);
 
@@ -185,6 +194,7 @@ async fn main() -> anyhow::Result<()> {
         //     let texture = object.bitmap_8bpp.texture(&colors, &texture_creator);
         // });
 
+        /*
         table_objects
             .iter()
             // .filter(|pair| {
@@ -227,19 +237,28 @@ async fn main() -> anyhow::Result<()> {
 
                 Ok(())
             })?;
+        */
 
-        // canvas
-        //     .copy(
-        //         &bg_texture,
-        //         None,
-        //         Some(Rect::new(
-        //             bg_bitmap.position_x as i32,
-        //             bg_bitmap.position_y as i32,
-        //             bg_bitmap.width as u32,
-        //             bg_bitmap.height as u32,
-        //         )),
-        //     )
-        //     .unwrap();
+        canvas
+            .copy(
+                &ball_texture,
+                None,
+                Some(Rect::new(64, 64, ball_bitmap.width, ball_bitmap.height)),
+            )
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        canvas
+            .copy(
+                &bg_texture,
+                None,
+                Some(Rect::new(
+                    bg_bitmap.position_x as i32,
+                    bg_bitmap.position_y as i32,
+                    bg_bitmap.width,
+                    bg_bitmap.height,
+                )),
+            )
+            .map_err(|e| anyhow::anyhow!(e))?;
 
         canvas.present();
         // interval.tick().await;

@@ -10,8 +10,8 @@ impl From<Group> for TableSize {
         let entry = group.get_entry(EntryType::ShortArray).unwrap().clone();
         let table_size = entry.clone().short_array.unwrap();
         TableSize {
-            width: table_size.get(0).unwrap().clone() as u32,
-            height: table_size.get(1).unwrap().clone() as u32,
+            width: *table_size.first().unwrap() as u32,
+            height: *table_size.get(1).unwrap() as u32,
         }
     }
 }

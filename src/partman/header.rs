@@ -32,14 +32,14 @@ impl Header {
         reader.read_exact(&mut app_name)?;
         header.app_name = str::from_utf8(&app_name)
             .unwrap()
-            .trim_end_matches("\0")
+            .trim_end_matches('\0')
             .to_string();
 
         let mut description = [0; 100];
         reader.read_exact(&mut description)?;
         header.description = str::from_utf8(&description)
             .unwrap()
-            .trim_end_matches("\0")
+            .trim_end_matches('\0')
             .to_string();
 
         let mut file_size = [0; 4];

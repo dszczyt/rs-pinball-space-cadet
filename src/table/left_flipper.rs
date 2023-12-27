@@ -1,10 +1,3 @@
-use sdl2::{
-    pixels::Color,
-    render::{Texture, TextureCreator},
-    video::WindowContext,
-};
-use tokio::sync::broadcast::Receiver;
-
 use crate::{
     messages::{Message, MessageHandler},
     partman::{bitmap_8bpp::Bitmap8Bpp, group::Group},

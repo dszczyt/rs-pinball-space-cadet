@@ -18,14 +18,10 @@ impl Dat {
             groups: vec![],
         };
 
-        loop {
-            match Group::from_reader(&mut rdr) {
-                Ok(group) => {
-                    dat.groups.push(group);
-                }
-                Err(_) => break,
-            }
+        while let Ok(group) = Group::from_reader(&mut rdr) {
+            dat.groups.push(group);
         }
+
         Ok(dat)
     }
 
