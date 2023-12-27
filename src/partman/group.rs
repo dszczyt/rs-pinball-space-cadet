@@ -41,18 +41,20 @@ impl Group {
             .find(|&entry| entry.entry_type == entry_type)
     }
 
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> Option<String> {
         CString::from_vec_with_nul(
-            self.get_entry(EntryType::GroupName)
-                .unwrap()
+            self.get_entry(EntryType::GroupName)?
+                // .unwrap()
                 .data
-                .clone()
-                .unwrap()
+                .clone()?
+                // .unwrap()
                 .into(),
         )
-        .unwrap()
+        .ok()?
+        // .unwrap_or(CString::default())
         .into_string()
-        .unwrap()
+        .ok()
+        // .unwrap_or("unknown".to_owned())
     }
 }
 

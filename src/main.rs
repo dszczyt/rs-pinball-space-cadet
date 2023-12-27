@@ -1,40 +1,57 @@
-mod partman;
-mod pinball_table;
+pub mod messages;
+pub mod partman;
+pub mod pinball_table;
+pub mod table;
 
-use bytes::{Buf, Bytes};
+use anyhow::Context;
+use bytes::Buf;
+use num::FromPrimitive;
 use partman::{
     bitmap_8bpp::Bitmap8Bpp, colors::Colors, dat, entry::EntryType, table_size::TableSize,
 };
-use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
 use sdl2::{
     event::Event,
     messagebox::{show_simple_message_box, MessageBoxFlag},
     rect::Rect,
 };
-use std::{convert::Into, ffi::CString};
+use sdl2::{keyboard::Keycode, render::TextureCreator, video::WindowContext};
+use sdl2::{pixels::Color, render::Texture};
+use std::{borrow::BorrowMut, cell::RefCell, convert::Into, ffi::CString, rc::Rc, sync::Arc};
 use std::{io::Cursor, time::Duration};
+use tokio::sync::{broadcast, Mutex};
 
 use crate::partman::{
     entry::{EntryPalette, EntryShortArray},
     table_objects::ObjectType,
 };
+use crate::{messages::Message, messages::MessageHandler, partman::dat::Dat};
 
-fn main() {
+pub trait Redraw {
+    fn redraw(&mut self) -> Result<(), String>;
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let dat_file = include_bytes!("data/PINBALL.DAT");
     // let dat_file = include_bytes!("data/FONT.DAT");
 
-    let dat_contents = dat::Dat::from_reader(&mut Cursor::new(dat_file).reader()).unwrap();
+    let dat_contents = Dat::from_reader(&mut Cursor::new(dat_file).reader())?;
 
-    let title_group = dat_contents.groups.get(0).unwrap().clone();
-    let title_entry = title_group.get_entry(EntryType::String).unwrap();
-    let tmp: Vec<u8> = title_entry.data.clone().unwrap().into();
-    let title = CString::from_vec_with_nul(tmp).unwrap();
+    let title_group = dat_contents
+        .groups
+        .get(0)
+        .context("groups not found")?
+        .clone();
+    let title_entry = title_group
+        .get_entry(EntryType::String)
+        .context("no title found")?;
+    let tmp: Vec<u8> = title_entry.data.clone().context("???")?.into();
+    let title = CString::from_vec_with_nul(tmp)?;
     dbg!(&title);
 
     let table_size_group = dat_contents
         .get_group_by_name("table_size".to_owned())
-        .unwrap()
+        .context("group table size not found")?
         .clone();
     let table_size: TableSize = table_size_group.clone().into();
 
@@ -45,7 +62,7 @@ fn main() {
 
     let bg = dat_contents
         .get_group_by_name("background".to_owned())
-        .unwrap();
+        .context("group background not found")?;
 
     let bg_bitmap: Bitmap8Bpp = bg.try_into().unwrap();
 
@@ -68,13 +85,12 @@ fn main() {
                 "Could not create window",
                 &e.to_string(),
                 None,
-            )
-            .unwrap();
-            return;
+            )?;
+            return Ok(());
         }
     };
 
-    let mut canvas = window.into_canvas().build().unwrap();
+    let mut canvas = window.into_canvas().build()?;
 
     canvas.clear();
     canvas.present();
@@ -92,7 +108,7 @@ fn main() {
 
     let table_objects_group = dat_contents
         .get_group_by_name("table_objects".to_string())
-        .unwrap();
+        .context("group not found in table_objects")?;
 
     let table_objects: EntryShortArray = table_objects_group.into();
     let table_objects: Vec<&[i16]> = table_objects.short_array[1..].chunks(2).collect(); // the first integer is unknown (https://github.com/k4zmu2a/SpaceCadetPinball/blob/master/Doc/.dat%20file%20format.txt#L82)
@@ -101,12 +117,34 @@ fn main() {
 
     // dbg!(&table_objects);
 
+    // let (tx, mut rx) = broadcast::channel::<Message>(1);
+
+    let mut objects: Vec<Box<dyn Redraw>> = vec![];
+
+    table_objects
+        .iter()
+        .try_for_each(|pair| -> anyhow::Result<()> {
+            let (object_type, group_index) = (pair[0], pair[1]);
+            let object_type = FromPrimitive::from_i16(object_type);
+            let group = dat_contents
+                .groups
+                .get(group_index as usize)
+                .context("nothing found at index")?;
+
+            match object_type {
+                Some(ObjectType::LeftFlipper) => {
+                    dbg!(&object_type, &group.name());
+                    objects.push(Box::new(table::LeftFlipper::new(group)));
+                }
+                _ => {}
+            }
+            Ok(())
+        })?;
+
     'running: loop {
         i = (i + 1) % 255;
         // canvas.set_draw_color(Color::RGB(i, 64, 255 - i));
         // canvas.set_draw_color(Color::RGB(0, 64, 255));
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.clear();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -114,10 +152,38 @@ fn main() {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => {
+                    println!("sending event left pressed");
+                    // tx.send(Message::LeftFlipperInputPressed).unwrap();
+                }
+                Event::KeyUp {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => {
+                    println!("sending event left released");
+                    // tx.send(Message::LeftFlipperInputReleased).unwrap();
+                }
+                Event::KeyUp {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => {
+                    println!("right released");
+                }
                 _ => {}
             }
         }
         // The rest of the game loop goes here...
+
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+
+        // objects.iter_mut().for_each(|object| {
+        //     object.as_mut().redraw().unwrap();
+        //     let texture = object.bitmap_8bpp.texture(&colors, &texture_creator);
+        // });
 
         table_objects
             .iter()
@@ -125,31 +191,42 @@ fn main() {
             //     let (val1, _val2) = (pair[0], pair[1]);
             //     val1 == (ObjectType::Bumper as i16) // 1005 // bumper?
             // })
-            .for_each(|pair| {
-                let (_val1, val2) = (pair[0], pair[1]);
-                let group = dat_contents.groups.get(val2 as usize).unwrap();
-                // dbg!(&val1, &val2, &group, &group.name());
-                let bitmap: Result<Bitmap8Bpp, _> = group.try_into();
+            .filter(|pair| {
+                let object_type = pair[0];
+                let object_type: Option<ObjectType> = FromPrimitive::from_i16(object_type);
+                matches!(
+                    object_type,
+                    Some(ObjectType::Bumper) | Some(ObjectType::LeftFlipper)
+                )
+            })
+            .try_for_each(|pair| -> anyhow::Result<()> {
+                let (object_type, group_index) = (pair[0], pair[1]);
+                let object_type: Option<ObjectType> = FromPrimitive::from_i16(object_type);
+                let group = dat_contents
+                    .groups
+                    .get(group_index as usize)
+                    .context("group not found")?;
 
-                match bitmap {
-                    Ok(bitmap) => {
-                        let texture = bitmap.texture(&colors, &texture_creator);
-                        canvas
-                            .copy(
-                                &texture,
-                                None,
-                                Some(Rect::new(
-                                    bitmap.position_x as i32,
-                                    bitmap.position_y as i32,
-                                    bitmap.width as u32,
-                                    bitmap.height as u32,
-                                )),
-                            )
-                            .unwrap();
-                    }
-                    Err(e) => {}
-                }
-            });
+                // dbg!(&object_type, &group.name());
+                // dbg!(&val1, &val2, &group, &group.name());
+                let bitmap: Bitmap8Bpp = group.try_into().unwrap();
+
+                let texture = bitmap.texture(&colors, &texture_creator);
+                canvas
+                    .copy(
+                        &texture,
+                        None,
+                        Some(Rect::new(
+                            bitmap.position_x as i32,
+                            bitmap.position_y as i32,
+                            bitmap.width,
+                            bitmap.height,
+                        )),
+                    )
+                    .unwrap();
+
+                Ok(())
+            })?;
 
         // canvas
         //     .copy(
@@ -165,6 +242,9 @@ fn main() {
         //     .unwrap();
 
         canvas.present();
+        // interval.tick().await;
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
+
+    Ok(())
 }

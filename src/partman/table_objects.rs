@@ -1,6 +1,6 @@
 use num_derive::FromPrimitive;
 
-#[derive(PartialEq, FromPrimitive)]
+#[derive(Debug, PartialEq, FromPrimitive)]
 pub enum ObjectType {
     Plunger = 1001,
     Light = 1002,

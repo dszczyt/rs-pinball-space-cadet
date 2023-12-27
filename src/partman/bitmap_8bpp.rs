@@ -12,7 +12,7 @@ use sdl2::{
 
 use super::{entry::EntryType, group::Group};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub enum Resolution {
     _640x480,
     _800x600,
@@ -33,7 +33,7 @@ impl From<i8> for Resolution {
     }
 }
 
-#[derive(FromPrimitive, Debug, Default, PartialEq)]
+#[derive(FromPrimitive, Debug, Default, PartialEq, Clone)]
 pub enum BitmapType {
     None = 0,
     Raw = 1,
@@ -43,7 +43,7 @@ pub enum BitmapType {
     Undefined = -1,
 }
 
-#[derive(Derivative, Default)]
+#[derive(Derivative, Default, Clone)]
 #[derivative(Debug)]
 pub struct Bitmap8Bpp {
     pub resolution: Resolution,
@@ -102,7 +102,7 @@ impl TryFrom<&Group> for Bitmap8Bpp {
 impl Bitmap8Bpp {
     pub fn texture<'a>(
         &'a self,
-        colors: &Vec<Color>,
+        colors: &[Color],
         texture_creator: &'a TextureCreator<WindowContext>,
     ) -> Texture {
         if self.flags == BitmapType::Spliced {
@@ -113,6 +113,11 @@ impl Bitmap8Bpp {
 
         let mut bg_bitmap_content: Vec<u8> = self.data.clone().into();
         let bg_bitmap_content: &mut [u8] = &mut bg_bitmap_content;
+
+        if self.flags == BitmapType::Spliced {
+            dbg!(&bg_bitmap_content.len());
+            dbg!(&self.width * &self.height);
+        }
 
         let mut bg_surface =
             Surface::new(self.width as u32, self.height as u32, pixel_format).unwrap();
